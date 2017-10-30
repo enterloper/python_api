@@ -1,7 +1,8 @@
 from flask import jsonify, Blueprint, abort
 
-from flask.ext.restful import (Resource, Api, reqparse, inputs,
-							   fields, marshal, marshal_with, url_for)
+from flask.ext.restful import (Resource, Api, reqparse,
+							   inputs, fields, marshal,
+							   marshal_with, url_for)
 
 import models
 
@@ -14,7 +15,8 @@ course_fields = {
 
 
 def add_reviews(course):
-	course.reviews = [url_for('resources.reviews.review', id=review.id) for review in course.review_set]
+	course.reviews = [url_for('resources.reviews.review', id=review.id)
+					  for review in course.review_set]
 	return course
 
 
@@ -30,30 +32,32 @@ def course_or_404(course_id):
 class CourseList(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
-
 		self.reqparse.add_argument(
 			'title',
-			help='No course title provided',
 			required=True,
+			help='No course title provided',
 			location=['form', 'json']
 		)
 		self.reqparse.add_argument(
 			'url',
-			help='No course URL provided',
 			required=True,
+			help='No course URL provided',
 			location=['form', 'json'],
 			type=inputs.url
 		)
 		super().__init__()
 
 	def get(self):
-		courses = [marshal(add_reviews(course), course_fields) for course in models.Course.select()]
+		courses = [marshal(add_reviews(course), course_fields)
+				   for course in models.Course.select()]
 		return {'courses': courses}
 
+	@marshal_with(course_fields)
 	def post(self):
 		args = self.reqparse.parse_args()
-		models.Course.create(**args)
-		return jsonify({'courses': [{'title': 'Python Basics'}]})
+		course = models.Course.create(**args)
+		return (add_reviews(course), 201, {
+			'Location': url_for('resources.courses.course', id=course.id)})
 
 
 class Course(Resource):
@@ -61,14 +65,14 @@ class Course(Resource):
 		self.reqparse = reqparse.RequestParser()
 		self.reqparse.add_argument(
 			'title',
-			help='No course title provided',
 			required=True,
+			help='No course title provided',
 			location=['form', 'json']
 		)
 		self.reqparse.add_argument(
 			'url',
-			help='No course URL provided',
 			required=True,
+			help='No course URL provided',
 			location=['form', 'json'],
 			type=inputs.url
 		)
@@ -78,11 +82,18 @@ class Course(Resource):
 	def get(self, id):
 		return add_reviews(course_or_404(id))
 
+	@marshal_with(course_fields)
 	def put(self, id):
-		return jsonify({'title': 'Python Basics'})
+		args = self.reqparse.parse_args()
+		query = models.Course.update(**args).where(models.Course.id == id)
+		query.execute()
+		return (add_reviews(models.Course.get(models.Course.id == id)), 200,
+				{'Location': url_for('resources.courses.course', id=id)})
 
 	def delete(self, id):
-		return jsonify({'title': 'Python Basics'})
+		query = models.Course.delete().where(models.Course.id == id)
+		query.execute()
+		return '', 204, {'Location': url_for('resources.courses.courses')}
 
 
 courses_api = Blueprint('resources.courses', __name__)
@@ -92,7 +103,6 @@ api.add_resource(
 	'/api/v1/courses',
 	endpoint='courses'
 )
-
 api.add_resource(
 	Course,
 	'/api/v1/courses/<int:id>',
