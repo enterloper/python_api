@@ -11,6 +11,7 @@ user_fields = {
 	'username': fields.String, #Only this field should be revealed
 }
 
+
 class UserList(Resource):
 	def __init__(self):
 		self.reqparse = reqparse.RequestParser()
